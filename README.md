@@ -1,201 +1,235 @@
 # django-full-course-2025-part-3
 
-**Mastering Django Serializers – Building Production-Ready APIs**  
+**Mastering Django Serializers – Building Production-Ready APIs (Courses App)**  
 *Part 3 of the Django Full Course (2025 Edition)*
 
 - Created at: 2025-10-23  
 - Created by: `🐢 Arun Godwin Patel @ Code Creations`  
 
-This module builds upon [Part 2](https://github.com/code-creations-io/django-full-course-part-2), where we structured our Django models and connected them to the database.  
-In **Part 3**, we take the next big step — transforming our models into **JSON-ready API representations** using Django REST Framework (DRF) serializers.
+This part extends [Part 2](https://github.com/code-creations-io/django-full-course-part-2), where we defined our models for courses, modules, lessons, and users.  
+Now, we’ll expose these models through **Django REST Framework (DRF) serializers** — enabling a robust and production-ready API layer.
 
 ---
 
 ## 🧩 Overview
 
-Serializers are the **bridge between Django models and JSON data**.  
-In production-ready APIs, serializers do much more than convert data — they handle:
-- **Validation** (custom rules, cross-field checks)
-- **Nested relationships** (ForeignKeys, ManyToMany)
-- **Optimized queries** using `select_related` and `prefetch_related`
-- **Dynamic fields and context-aware logic**
-- **Integration with permissions, throttling, and pagination**
-
-By the end of this part, you’ll be able to build **scalable, secure, and efficient REST APIs** that can power real-world frontends, mobile apps, and AI systems.
+In this part, you’ll learn how to:
+- Serialize models with relationships (`ForeignKey`, `ManyToMany`, `OneToOne`)
+- Handle nested and dynamic serializers
+- Implement computed fields and custom validation
+- Optimize API performance with `select_related` and `prefetch_related`
+- Structure serializers for scalability and clean separation of logic
 
 ---
 
-## ⚙️ Prerequisites
+## ⚙️ Setup
 
-Ensure you’ve completed Part 2 and have the following setup:
+Ensure DRF is installed and added to your project:
 ```bash
-python -m venv venv
-source venv/bin/activate     # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
-python manage.py runserver
+pip install djangorestframework
+```
+
+In `settings.py`:
+```python
+INSTALLED_APPS = [
+    ...
+    'rest_framework',
+    'core',
+    'users',
+]
 ```
 
 ---
 
-## 🧠 Topics Covered
+## 🧱 Serializer Overview
 
-| # | Concept | Description |
-|---|----------|-------------|
-| 1 | **Serializer Basics** | Understanding `ModelSerializer` vs `Serializer`, how fields are auto-generated, and when to override them. |
-| 2 | **Custom Validation** | Implementing field-level, object-level, and cross-field validation methods. |
-| 3 | **Nested Serializers** | Serializing relationships (e.g. `Author` → `Post`, `Post` → `Comment`). |
-| 4 | **SerializerMethodField** | Adding computed fields (e.g. `comment_count`, `is_popular`). |
-| 5 | **Dynamic Fields** | Conditionally including/excluding fields using request context. |
-| 6 | **Optimized Querysets** | Combining serializers with `select_related`, `prefetch_related` to reduce N+1 queries. |
-| 7 | **Hyperlinked & Slug Serializers** | Linking objects via URLs or slugs instead of IDs. |
-| 8 | **Nested Writes** | Handling creation/updating of nested models safely. |
-| 9 | **Permissions & Validation Integration** | Combining serializers with DRF permissions and custom business logic. |
-| 10 | **Performance & Caching** | Using `Serializer.cache` and DRF extensions for high-performance APIs. |
+| Serializer | Description |
+|-------------|--------------|
+| `UserProfileSerializer` | Serializes the `UserProfile` model, including linked `User`. |
+| `LessonSerializer` | Handles `Lesson` fields and computed durations. |
+| `ModuleSerializer` | Includes nested lessons. |
+| `CourseSerializer` | Serializes relationships with `tags`, `topics`, and instructors, with computed completion. |
+| `EnrollmentSerializer` | Handles course-user enrollment with computed progress. |
+| `LessonProgressSerializer` | Tracks completion of lessons per user. |
 
 ---
 
-## 🧩 Example: Basic ModelSerializer
-
-Let’s revisit the `Post` model from Part 2 and create a simple serializer.
+## 👤 `users/serializers.py`
 
 ```python
 from rest_framework import serializers
-from blog.models import Post
+from django.contrib.auth.models import User
+from users.models import UserProfile
 
-class PostSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Post
-        fields = ['id', 'title', 'summary', 'author', 'created_at']
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = ['id', 'user', 'display_name', 'bio']
 ```
 
 ---
 
-## 🧠 Example: Nested Serializers
-
-The `Post` model relates to `Comment` through a ForeignKey.  
-We can serialize both models together:
+## 📘 `core/serializers.py`
 
 ```python
 from rest_framework import serializers
-from blog.models import Post, Comment
+from core.models import Course, Module, Lesson, Enrollment, LessonProgress
+from users.serializers import UserSerializer
 
-class CommentSerializer(serializers.ModelSerializer):
+# ------------------ Lesson ------------------
+class LessonSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Comment
-        fields = ['id', 'author', 'content', 'created_at']
+        model = Lesson
+        fields = ['id', 'name', 'slug', 'content', 'duration_seconds', 'order', 'created_at', 'updated_at']
 
-class PostSerializer(serializers.ModelSerializer):
-    comments = CommentSerializer(many=True, read_only=True)
+# ------------------ Module ------------------
+class ModuleSerializer(serializers.ModelSerializer):
+    lessons = LessonSerializer(many=True, read_only=True)
 
     class Meta:
-        model = Post
-        fields = ['id', 'title', 'summary', 'body', 'author', 'comments']
+        model = Module
+        fields = ['id', 'name', 'slug', 'description', 'order', 'lessons', 'created_at', 'updated_at']
+
+# ------------------ Course ------------------
+class CourseSerializer(serializers.ModelSerializer):
+    modules = ModuleSerializer(many=True, read_only=True)
+    instructors = UserSerializer(many=True, read_only=True)
+    total_lessons = serializers.SerializerMethodField()
+    completion_rate = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = [
+            'id',
+            'name',
+            'slug',
+            'description',
+            'is_published',
+            'tags',
+            'topics',
+            'instructors',
+            'modules',
+            'total_lessons',
+            'completion_rate',
+            'created_at',
+            'updated_at',
+        ]
+
+    def get_total_lessons(self, obj):
+        return obj.total_lessons()
+
+    def get_completion_rate(self, obj):
+        user = self.context.get('request').user if self.context.get('request') else None
+        if user and user.is_authenticated:
+            return obj.completion_for(user)
+        return None
+
+# ------------------ Enrollment ------------------
+class EnrollmentSerializer(serializers.ModelSerializer):
+    course = CourseSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
+    progress_percent = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Enrollment
+        fields = ['id', 'course', 'user', 'enrolled_at', 'progress_percent']
+
+    def get_progress_percent(self, obj):
+        return obj.progress_percent()
+
+# ------------------ LessonProgress ------------------
+class LessonProgressSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    lesson = LessonSerializer(read_only=True)
+
+    class Meta:
+        model = LessonProgress
+        fields = ['id', 'user', 'lesson', 'completed', 'completed_at', 'created_at', 'updated_at']
 ```
 
 ---
 
-## 💡 SerializerMethodField for Computed Values
+## ⚡ Advanced Concepts
+
+### ✅ Custom Validation Example
 
 ```python
-class PostSerializer(serializers.ModelSerializer):
-    comment_count = serializers.SerializerMethodField()
-
+class LessonSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Post
-        fields = ['id', 'title', 'summary', 'comment_count']
+        model = Lesson
+        fields = '__all__'
 
-    def get_comment_count(self, obj):
-        return obj.comments.count()
+    def validate_duration_seconds(self, value):
+        if value > 3600 * 4:
+            raise serializers.ValidationError("Lesson duration cannot exceed 4 hours.")
+        return value
 ```
 
 ---
 
-## 🧱 Advanced: Dynamic Fields & Context
+### 🧩 Dynamic Fields (Context Aware)
 
 ```python
-class DynamicPostSerializer(serializers.ModelSerializer):
+class CourseMinimalSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Post
-        fields = ['id', 'title', 'summary', 'body', 'author']
+        model = Course
+        fields = ['id', 'name', 'slug']
+
+class CourseDynamicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ['id', 'name', 'slug', 'description', 'modules']
 
     def __init__(self, *args, **kwargs):
         fields = kwargs.pop('fields', None)
         super().__init__(*args, **kwargs)
-        if fields is not None:
+        if fields:
             allowed = set(fields)
-            for field_name in set(self.fields) - allowed:
-                self.fields.pop(field_name)
-```
-
-You can now use it dynamically in views:
-```python
-serializer = DynamicPostSerializer(post, fields=['id', 'title'])
+            existing = set(self.fields)
+            for field in existing - allowed:
+                self.fields.pop(field)
 ```
 
 ---
 
-## 🔐 Validations & Permissions
+### 🚀 Optimizing Querysets in ViewSets
 
 ```python
-class SecurePostSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Post
-        fields = ['title', 'summary', 'body']
-
-    def validate_title(self, value):
-        if "spam" in value.lower():
-            raise serializers.ValidationError("Title contains banned word: spam")
-        return value
-
-    def validate(self, data):
-        if data['title'] == data['summary']:
-            raise serializers.ValidationError("Title and summary cannot be identical")
-        return data
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.select_related().prefetch_related('modules__lessons', 'instructors')
+    serializer_class = CourseSerializer
 ```
 
 ---
 
-## 🚀 Optimizing Querysets in Views
+### 🧠 Serializer Best Practices for Production
 
-Avoid N+1 queries when serializing relationships:
-
-```python
-class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.select_related('author').prefetch_related('comments')
-    serializer_class = PostSerializer
-```
-
----
-
-## 🧠 Bonus: Serializer Performance Tips
-
-- Use `select_related` and `prefetch_related`
-- Avoid unnecessary nested serialization for list endpoints
-- Use `SerializerMethodField` sparingly
-- For heavy APIs, consider DRF-extensions caching
-- Benchmark using Django Debug Toolbar
-
----
-
-## 🧰 Challenge Exercise
-
-Create a serializer for the `Author` model that:
-1. Displays all related posts with only `title` and `summary`.
-2. Adds a computed field `total_posts`.
-3. Enforces a validation rule that name cannot contain numbers.
+- ✅ Always define `Meta.fields` explicitly — avoid `__all__` in public APIs.  
+- ⚙️ Use nested serializers for read-only relationships.  
+- 🚀 Optimize queries using `select_related` and `prefetch_related`.  
+- 🔒 Perform validation and permission checks in serializers for safer writes.  
+- 💾 Use pagination and filtering for large datasets.  
+- 🧰 Cache frequently accessed serializers when appropriate.  
 
 ---
 
 ## 🧭 Next Steps
 
-In **Part 4**, we’ll explore **ViewSets, Routers, and Advanced API Design**, connecting our serializers to powerful REST endpoints.
+In **Part 4**, we’ll connect these serializers to **ViewSets and Routers**, building RESTful endpoints for courses, lessons, and user progress.
 
 ---
 
 **📘 Resources**
 - [Django REST Framework Docs](https://www.django-rest-framework.org/)
+- [Advanced DRF Performance](https://testdriven.io/blog/drf-performance/)
 - [Django Debug Toolbar](https://django-debug-toolbar.readthedocs.io/en/latest/)
-- [DRF Performance Tips](https://testdriven.io/blog/drf-performance/)
 
 ---
 
