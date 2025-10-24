@@ -1,10 +1,10 @@
 # django-full-course-2025-part-3
 
 **Mastering Django Serializers – Building Production-Ready APIs (Courses App)**  
-*Part 3 of the Django Full Course (2025 Edition)*
+_Part 3 of the Django Full Course (2025 Edition)_
 
-- Created at: 2025-10-23  
-- Created by: `🐢 Arun Godwin Patel @ Code Creations`  
+- Created at: 2025-10-23
+- Created by: `🐢 Arun Godwin Patel @ Code Creations`
 
 This part extends [Part 2](https://github.com/code-creations-io/django-full-course-part-2), where we defined our models for courses, modules, lessons, and users.  
 Now, we’ll expose these models through **Django REST Framework (DRF) serializers** — enabling a robust and production-ready API layer.
@@ -14,6 +14,7 @@ Now, we’ll expose these models through **Django REST Framework (DRF) serialize
 ## 🧩 Overview
 
 In this part, you’ll learn how to:
+
 - Serialize models with relationships (`ForeignKey`, `ManyToMany`, `OneToOne`)
 - Handle nested and dynamic serializers
 - Implement computed fields and custom validation
@@ -25,11 +26,13 @@ In this part, you’ll learn how to:
 ## ⚙️ Setup
 
 Ensure DRF is installed and added to your project:
+
 ```bash
 pip install djangorestframework
 ```
 
 In `settings.py`:
+
 ```python
 INSTALLED_APPS = [
     ...
@@ -43,14 +46,14 @@ INSTALLED_APPS = [
 
 ## 🧱 Serializer Overview
 
-| Serializer | Description |
-|-------------|--------------|
-| `UserProfileSerializer` | Serializes the `UserProfile` model, including linked `User`. |
-| `LessonSerializer` | Handles `Lesson` fields and computed durations. |
-| `ModuleSerializer` | Includes nested lessons. |
-| `CourseSerializer` | Serializes relationships with `tags`, `topics`, and instructors, with computed completion. |
-| `EnrollmentSerializer` | Handles course-user enrollment with computed progress. |
-| `LessonProgressSerializer` | Tracks completion of lessons per user. |
+| Serializer                 | Description                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `UserProfileSerializer`    | Serializes the `UserProfile` model, including linked `User`.                               |
+| `LessonSerializer`         | Handles `Lesson` fields and computed durations.                                            |
+| `ModuleSerializer`         | Includes nested lessons.                                                                   |
+| `CourseSerializer`         | Serializes relationships with `tags`, `topics`, and instructors, with computed completion. |
+| `EnrollmentSerializer`     | Handles course-user enrollment with computed progress.                                     |
+| `LessonProgressSerializer` | Tracks completion of lessons per user.                                                     |
 
 ---
 
@@ -211,12 +214,12 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 ### 🧠 Serializer Best Practices for Production
 
-- ✅ Always define `Meta.fields` explicitly — avoid `__all__` in public APIs.  
-- ⚙️ Use nested serializers for read-only relationships.  
-- 🚀 Optimize queries using `select_related` and `prefetch_related`.  
-- 🔒 Perform validation and permission checks in serializers for safer writes.  
-- 💾 Use pagination and filtering for large datasets.  
-- 🧰 Cache frequently accessed serializers when appropriate.  
+- ✅ Always define `Meta.fields` explicitly — avoid `__all__` in public APIs.
+- ⚙️ Use nested serializers for read-only relationships.
+- 🚀 Optimise queries using `select_related` and `prefetch_related`.
+- 🔒 Perform validation and permission checks in serializers for safer writes.
+- 💾 Use pagination and filtering for large datasets.
+- 🧰 Cache frequently accessed serializers when appropriate.
 
 ---
 
@@ -227,6 +230,7 @@ In **Part 4**, we’ll connect these serializers to **ViewSets and Routers**, bu
 ---
 
 **📘 Resources**
+
 - [Django REST Framework Docs](https://www.django-rest-framework.org/)
 - [Advanced DRF Performance](https://testdriven.io/blog/drf-performance/)
 - [Django Debug Toolbar](https://django-debug-toolbar.readthedocs.io/en/latest/)
