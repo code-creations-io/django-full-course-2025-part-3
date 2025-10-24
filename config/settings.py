@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'core',
     'users',
     'lookups',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
